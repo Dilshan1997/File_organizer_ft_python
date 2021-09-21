@@ -1,18 +1,24 @@
 import os
+import pickle
 import shutil
 import time
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
-import customize
+import custom
+import configparser
+import re
+
 
 
 root=Tk()
 root.title('File Organizer')
 
+
 my_notbook=ttk.Notebook(root)
 frame1=Frame(my_notbook,width=1920,height=1080)
 frame2=Frame(my_notbook)
+frame3=Frame(my_notbook)
 filelocation=""
 files=''
 image_foramt=list()
@@ -79,16 +85,18 @@ def proccess(event):
                 shutil.move(f'{filelocation}/{file}', f'{filelocation}/books/{file}')
 
         count=count+1
+        count_label = Label(frame1, text=f'{count}/{files_count}')
+        count_label.grid(row=18,column=1)
         print(f'{count}/{files_count}')
         progress_bar['value']+=1
         root.update_idletasks()
         progress_label = Label()
         progress_label.config(text=progress_bar)
-        time.sleep(0.5)
 
-    progress_count = Label(frame1, text=f"{count}/{files_count}")
-    progress_count.grid(row=16,column=0)
-    print(progress_count)
+
+    # progress_count = Label(frame1, text=f"{count}/{files_count}")
+    # progress_count.grid(row=16,column=0)
+    # print(progress_count)
     label_complete=Label(frame1,text="complete")
     label_complete.grid(row=18,column=0)
     print("complete")
@@ -167,8 +175,6 @@ txt_f=Checkbutton(frame1,text="txt",variable=txt,onvalue="txt",offvalue="Off")
 var=[jpg,jpeg,png,tiff,mp4,mpeg,avi,gif,mp3,doc,docx,pdf,txt]
 
 
-
-
 img_label.grid(row=0,column=0)
 video_label.grid(row=0,column=1)
 audio_label.grid(row=0,column=2)
@@ -229,18 +235,50 @@ root.config(menu=my_menue)
 def command():
     label=Label(text='Menu tab select')
     label.pack()
+
 custom_file_with_extension = dict()
 customize_dict=dict()
+
+def save_list():
+    with open('Customize_list.pkl', 'ab+') as file:
+        pickle.dump(customize_dict,file)
+
+objs=[]
+with open('Customize_list.pkl','rb') as f:
+    while 1:
+        try:
+            objs.append(pickle.load(f))
+
+        except EOFError:
+            break
+
+
+def remove_list():
+    pass
+
+
+
+j = 0
 def customize_add():
+    global j
 
     c_filename=file_name.get()
     c_file_ext=extensions.get().split(" ")
     custom_file_with_extension[c_filename]=c_file_ext
     customize_dict.update(custom_file_with_extension)
-    print(customize_dict)
-    print(c_file_ext)
     file_name.delete(0,END)
     extensions.delete(0,END)
+    label_file=Label(frame2,text="file name")
+    label_file.grid(row=3,column=0)
+    label_file_extension = Label(frame2,text="extension")
+    label_file_extension.grid(row=3, column=1)
+
+    for i in range(len(customize_dict.keys())):
+        file_l=Label(frame2,text=list(customize_dict.keys())[i])
+        file_l.grid(row=i+4,column=0)
+        extensions_l=Label(frame2,text=list(customize_dict.values())[i])
+        extensions_l.grid(row=i+4,column=1)
+
 
 
 
@@ -255,6 +293,80 @@ extensions_label.grid(row=0,column=1)
 extensions.grid(row=1,column=1,ipadx=50,padx=30,pady=30,ipady=30)
 button_add=Button(frame2,text="Add",command=customize_add)
 button_add.grid(row=1,column=2,padx=2,ipadx=2)
+
+save = Button(frame2, text='save list', command=save_list)
+save.grid(row=len(customize_dict.keys()) + 4, column=2)
+# clear = Button(frame2, text='clear list', command=remove_list)
+# clear.grid(row=len(customize_dict.keys()) + 5, column=2)
+save = Button(frame2, text='save list', command=save_list)
+save.grid(row=len(customize_dict.keys()) + 4, column=2)
+
+def my_file_process(event):
+    global filelocation, count
+    files = os.listdir(filelocation)
+    files_count = len(files)
+    progress_bar = ttk.Progressbar(frame3, orient=HORIZONTAL, length=files_count, mode='determinate')
+    progress_bar.grid(row=25, column=4)
+
+    for file in files:
+        exet = file.split('.')[-1].lower()
+        for custom_file in all_files.keys():
+            if exet in all_files[custom_file]:
+                if custom_file in files:
+                    replacement(file, filelocation, custom_file)
+                    print("replacement")
+
+
+                else:
+                    print("create file")
+                    os.mkdir(f'{filelocation}/{custom_file}')
+                    files = os.listdir(filelocation)
+                    shutil.move(f'{filelocation}/{file}', f'{filelocation}/{custom_file}/{file}')
+
+
+        count = count + 1
+        count_label = Label(frame3, text=f'{count}/{files_count}')
+        count_label.grid(row=3,column=1)
+        # print()
+        progress_bar['value'] += 1
+        root.update_idletasks()
+        progress_label = Label()
+        progress_label.config(text=progress_bar)
+        # time.sleep(0.5)
+
+
+
+def my_files_path():
+    global filelocation
+    filelocation = filedialog.askdirectory(initialdir='c:/', title='select path')
+    path = Label(frame3, text=filelocation)
+    path.grid(row=1, column=2)
+    proccess_btn = Button(frame3, text="Manage my files")
+    proccess_btn.bind("<Button-1>",my_file_process)
+    proccess_btn.grid(row=2, column=2, columnspan=5)
+
+
+#My file UI
+all_files=dict()
+for i in range(len(objs)):
+    all_files.update(objs[i])
+global check
+
+for i in range(len(all_files)):
+
+    Label(frame3,text=str(list(all_files.keys())[i])).grid(row=i,column=0,pady=2)
+    Label(frame3,text=str(list(all_files.values())[i])).grid(row=i,column=1,pady=5,padx=10,ipady=5)
+
+    # check=Checkbutton(frame3, text=str(list(all_files.keys())[i]), variable=list(all_files.keys())[i], onvalue=str(list(all_files.keys())[i])+'on', offvalue=str(list(all_files.keys())[i])+'off').grid(row=0,column=i)
+
+
+
+print(all_files)
+
+btn_my_files_select=Button(frame3,text="select path",command=my_files_path)
+btn_my_files_select.grid(row=0,column=2,padx=5,ipady=5,ipadx=5,columnspan=5)
+
+
 
 
 
@@ -274,8 +386,9 @@ my_menue.add_cascade(label="About",menu=about_menu)
 about_menu.add_command(label="Version 0.1")
 about_menu.add_command(label="Made by- Dilshan Madhuranga")
 
-my_notbook.add(frame1,text="Default")
+my_notbook.add(frame1,text="Quick")
 my_notbook.add(frame2,text="Customize")
+my_notbook.add(frame3,text="My files")
 my_notbook.pack(pady=20)
 root.mainloop()
 
